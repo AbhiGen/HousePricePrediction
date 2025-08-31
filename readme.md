@@ -26,7 +26,7 @@ It includes:
 
 ## Project Structure
 
-"""
+```
 Bengaluru_House_Price_Project/
 │── data/ # Dataset CSV
 │── src/ # Python scripts
@@ -40,14 +40,14 @@ Bengaluru_House_Price_Project/
 │── model.pkl # Pickled trained model
 │── hp.ipynb # Jupyter Notebook for exploration
 └── README.md
-"""
+```
 
 
 ---
 
 ## Preprocessing Steps
 
-"""
+```
 Raw Bengaluru Housing Dataset (13320 rows, 9 columns)
                  │
                  ▼
@@ -90,4 +90,4 @@ Raw Bengaluru Housing Dataset (13320 rows, 9 columns)
 ✅ Final Preprocessed Dataset (12434 rows, 235 features)
    - Features: total_sqft, bath, balcony, bhk, location dummies
    - Target: log(price)
-"""
+```
