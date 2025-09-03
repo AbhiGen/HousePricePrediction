@@ -6,6 +6,7 @@ from math import radians, sin, cos, sqrt, atan2
 from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import joblib
@@ -66,14 +67,19 @@ print("One-hot encoded columns:", dummies.columns.tolist())
 mg_road_coords = (12.9756, 77.6047)
 location_coords = {
     "Whitefield": (12.9698, 77.7499),
-    "Sarjapur Road": (12.8971, 77.6820),
+    "Sarjapur  Road": (12.9121, 77.6844),
     "Electronic City": (12.8412, 77.6636),
-    "Hebbal": (13.0350, 77.5970),
-    "Yelahanka": (13.1007, 77.5963),
     "Marathahalli": (12.9592, 77.6974),
-    "Indira Nagar": (12.9784, 77.6408),
+    "Hebbal": (13.0350, 77.5970),
     "HSR Layout": (12.9121, 77.6446),
-    "1st Block Jayanagar": (12.9293, 77.5822)  # Added for testing
+    "Indira Nagar": (12.9784, 77.6408),
+    "Yelahanka": (13.1007, 77.5963),
+    "Koramangala": (12.9352, 77.6245),
+    "Jayanagar": (12.9293, 77.5822),
+    "Rajaji Nagar": (12.9901, 77.5529),
+    "Bellandur": (12.9304, 77.6784),
+    "Bannerghatta Road": (12.8884, 77.6039),
+    "1st Block Jayanagar": (12.9293, 77.5822)
 }
 
 def haversine(coord1, coord2):
@@ -203,8 +209,8 @@ X_train_tree, X_test_tree, _, _ = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-# Define and tune models
-models = {
+# Define models
+models_to_tune = {
     "Random Forest": RandomForestRegressor(random_state=42),
     "XGBoost": xgb.XGBRegressor(random_state=42)
 }
@@ -222,8 +228,11 @@ param_grids = {
     }
 }
 
-tuned_models = {}
-for name, model in models.items():
+# --- Model Training and Tuning ---
+final_models = {}
+
+# Train and tune tree-based models on unscaled data
+for name, model in models_to_tune.items():
     random_search = RandomizedSearchCV(
         estimator=model,
         param_distributions=param_grids[name],
@@ -234,14 +243,22 @@ for name, model in models.items():
         random_state=42
     )
     random_search.fit(X_train_tree, y_train)
-    tuned_models[name] = random_search.best_estimator_
+    final_models[name] = random_search.best_estimator_
     print(f"Best parameters for {name}: {random_search.best_params_}")
 
-# Evaluate models
+# Train Linear Regression on scaled data
+lr = LinearRegression()
+lr.fit(X_train_scaled, y_train)
+final_models["Linear Regression"] = lr
+
+# --- Model Evaluation ---
 results = {}
-for name, model in tuned_models.items():
-    X_tr, X_te = X_train_tree, X_test_tree
-    model.fit(X_tr, y_train)
+for name, model in final_models.items():
+    if name == "Linear Regression":
+        X_te = X_test_scaled
+    else:
+        X_te = X_test_tree
+        
     y_pred = model.predict(X_te)
     rmse = np.sqrt(mean_squared_error(y_test, y_pred))
     mae = mean_absolute_error(y_test, y_pred)
@@ -251,7 +268,7 @@ for name, model in tuned_models.items():
 
 # Select best model based on R²
 best_model_name = max(results, key=lambda x: results[x]['R²'])
-best_model = tuned_models[best_model_name]
+best_model = final_models[best_model_name]
 print(f"Best Model: {best_model_name}")
 
 # Save artifacts
@@ -259,3 +276,7 @@ joblib.dump(best_model, "best_model.pkl")
 joblib.dump(scaler, "scaler.pkl")
 joblib.dump(X.columns.tolist(), "feature_columns.pkl")
 joblib.dump(existing_numeric_features, "numeric_features.pkl")
+
+# Save test data for SHAP explanations in the app
+joblib.dump(X_test_tree, "X_test_tree.pkl")
+joblib.dump(location_coords, "location_coords.pkl")
